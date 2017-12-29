@@ -1,0 +1,9 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/server/obj
+/server/bin/Debug/netcoreapp2.0
+/utils/coreUtils/obj
+/wallet/obj
+/wallet/bin/Debug/netcoreapp2.0
