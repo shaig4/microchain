@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\server",
+    "\\server\\obj",
+    "\\server\\obj\\Debug",
+    "\\server\\obj\\Debug\\netcoreapp2.0",
+    "\\server\\obj\\Release",
+    "\\utils"
+  ],
+  "SelectedNode": "\\server\\obj\\Debug\\netcoreapp2.0\\server.AssemblyInfo.cs",
+  "PreviewInSolutionExplorer": false
+}
