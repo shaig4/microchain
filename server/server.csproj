@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\blockchain1\utils.csproj" />
+    <ProjectReference Include="..\utils\utils.csproj" />
   </ItemGroup>
 
 </Project>

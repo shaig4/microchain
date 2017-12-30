@@ -1,4 +1,4 @@
-﻿using blockchain1;
+﻿using utils;
 using Newtonsoft.Json;
 using System;
 using System.IO;
@@ -6,7 +6,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 
-namespace blockchainUtils
+namespace wallet
 {
     class Program
     {
@@ -22,10 +22,9 @@ namespace blockchainUtils
                 if (line== "f")
                 {
                     i++;
-
-                    var f = File.ReadAllLines(@"C:\projects\blockchainUtils\imp.txt");
+                    var f = File.ReadAllLines(@"..\wallet\imp.txt");
                     wallet.Import(f[0], f[1]);
-                    var coin = Get(f[0]);
+                    var coin = Get(f[0],0);
                     if (coin==null)
                     {
                         Console.WriteLine("no coin");
@@ -40,7 +39,7 @@ namespace blockchainUtils
                      }
                     };
 
-                    Send(rp);
+                    ApiUtils.Send(rp,0);
 
                 }
                 else if (line == "l")
@@ -55,12 +54,12 @@ namespace blockchainUtils
                 }
                 else if (line == "b")
                 {
+                    for (var j=0; j<10; j++)
                     foreach (var a in wallet.pubPriv.Values)
                     {
-                         var coin = Get(a.publicKey);
+                         var coin = Get(a.publicKey,j);
                         if (coin!=null)
-                            Console.WriteLine(a.name + " balance: "+ (coin.available?coin.amount:0));
-                        Console.WriteLine("---");
+                            Console.WriteLine($"{j}: {a.name} balance: {(coin.available?coin.amount:0)}");
                     }
                 }
                 else if (line.StartsWith("p "))
@@ -73,7 +72,7 @@ namespace blockchainUtils
                         Console.WriteLine("no name");
                         continue;
                     }
-                    var coin = Get(acnt.First().Key);
+                    var coin = Get(acnt.First().Key,0);
                     if (coin == null)
                     {
                         Console.WriteLine("no coin");
@@ -88,31 +87,18 @@ namespace blockchainUtils
                      }
                     };
 
-                    Send(rp);
+                    ApiUtils.Send(rp,1);
                 }
             }
         }
 
-        private static void Send(RequestPay rp)
-        {
-            var x = JsonConvert.SerializeObject(rp);
-
-            using (var client = new HttpClient())
-            {
-                var httpContent = new HttpRequestMessage(HttpMethod.Post, "http://localhost:8090/set");
-
-                httpContent.Content = new StringContent(x, Encoding.UTF8, "application/json");
-                var response = client.SendAsync(httpContent).Result.Content.ReadAsStringAsync().Result;
-            //    Console.WriteLine("Send! response " + response);
-            }
-        }
-        private static Coin Get(string pub)
+        private static Coin Get(string pub,int i)
         {
             try
             {
                 using (var client = new HttpClient())
                 {
-                    var httpContent = new HttpRequestMessage(HttpMethod.Post, "http://localhost:8090/get");
+                    var httpContent = new HttpRequestMessage(HttpMethod.Post, $"http://localhost:809{i}/get");
 
                     httpContent.Content = new StringContent(pub, Encoding.UTF8, "application/json");
                     var response = client.SendAsync(httpContent).Result.Content.ReadAsStringAsync().Result;

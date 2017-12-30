@@ -7,7 +7,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace blockchain1
+namespace utils
 {
     public class CryptoUtils
     {
@@ -18,53 +18,43 @@ namespace blockchain1
             {
                 rsa.KeySize = keySize;
 
-                var a1 = new Address();
-                a1.privateKey = RSAParametersSerializable.Ser(rsa.ExportParameters(true));
-                a1.publicKey = RSAParametersSerializable.Ser(rsa.ExportParameters(false));
+                var a1 = new Address
+                {
+                    privateKey = RSAParametersSerializable.Ser(rsa.ExportParameters(true)),
+                    publicKey = RSAParametersSerializable.Ser(rsa.ExportParameters(false))
+                };
 
                 return a1;
             }
         }
-
-        public static Coin Pay(Network net, RequestParent parents, RequestChild children, bool genesis = false)
-        {
-            return Pay(net, new RequestParent[] { parents }, new RequestChild[] { children }, genesis)[0];
-        }
-        public static Coin PayUnion(Network net, RequestParent[] parents, RequestChild children)
-        {
-            return Pay(net, parents, new RequestChild[] { children }, false)[0];
-        }
-        public static Coin[] PaySplit(Network net, RequestParent parents, RequestChild[] children)
-        {
-            return Pay(net, new RequestParent[] { parents },  children , false);
-        }
-
-        public static Coin[] Pay(Network net, RequestParent[] parents, RequestChild[] children, bool genesis)
+        public static void Validate(Network net, RequestParent[] parents, RequestChild[] children)
         {
             if (parents.Length > 1 && children.Length > 1)
                 throw new ArgumentException("cant move many to many");
 
-            if (!genesis)
+            if (parents.GroupBy(a => a.publicKey).Count() != parents.Count()
+                || children.GroupBy(a => a.publicKey).Count() != children.Count())
+                throw new ArgumentException("duplicated coins");
+
+            decimal amount = 0;
+            foreach (var parent in parents)
             {
-                if (parents.GroupBy(a => a.publicKey).Count() != parents.Count()
-                    || children.GroupBy(a => a.publicKey).Count() != children.Count())
-                    throw new ArgumentException("duplicated coins");
+                if (!net.coins.ContainsKey(parent.publicKey))
+                    throw new ArgumentException("parent not in network");
 
-                decimal amount = 0;
-                foreach (var parent in parents)
-                {
-                    var coin = net.coins[parent.publicKey];
-                    amount += coin.amount;
-                    if (!VerifyData(coin.publicKey, coin.hash, parent.sig))
-                        throw new ArgumentException("order could not unlock");
-                    if (!coin.available)
-                        throw new ArgumentException("a used coin");
-                }
-                if (children.Sum(a => a.amount) != amount)//1+1=2 || 2=1+1
-                    throw new ArgumentException("orders amount not match");
+                var coin = net.coins[parent.publicKey];
+                amount += coin.amount;
+                if (!VerifyData(coin.publicKey, coin.hash, parent.sig))
+                    throw new ArgumentException($"order could not unlock {coin.hash.Substring(0,10)} {parent.sig.Substring(0,10)}");
+                if (!coin.available)
+                    throw new ArgumentException("a used coin");
             }
+            if (children.Sum(a => a.amount) != amount)//1+1=2 || 2=1+1
+                throw new ArgumentException("orders amount not match");
+        }
 
-
+        public static Coin[] Pay(Network net, RequestParent[] parents, RequestChild[] children)
+        {
             var res = new List<Coin>();
             foreach (var rt in children)
             {
@@ -75,18 +65,19 @@ namespace blockchain1
                 {
                     amount = rt.amount,
                     data = rt.data,
-                    time = DateTime.UtcNow,
+                  //  time = DateTime.UtcNow,
                     publicKey = rt.publicKey,
-                    parents= parents.Select(a=>a.publicKey).ToArray(),
-                    brothers = children.Where(a=>a!=rt).Select(a=>a.publicKey).ToArray()
+                    parents = parents?.Select(a => a.publicKey).ToArray(),
+                    brothers = children.Where(a => a != rt).Select(a => a.publicKey).ToArray()
                 };
 
-                var sigsBytes = parents.SelectMany(a => SerializeToBytes(a.sig));
+                var sigsBytes = parents?.SelectMany(a => SerializeToBytes(a.sig)) ?? new byte[] { };
                 t.hash = Hash(SerializeToBytes(t).Concat(sigsBytes).ToArray());
                 res.Add(t);
+                Console.WriteLine($"coin size {SerializeToBytes(t).Length} bytes");
             }
 
-            if (!genesis)
+            if (parents!=null)
                 foreach (var p in parents)
                     net.coins[p.publicKey].available = false;
 
@@ -99,7 +90,7 @@ namespace blockchain1
             return res.ToArray();
         }
 
-         static byte[] SerializeToBytes(object t)
+      public   static byte[] SerializeToBytes(object t)
         {
             if (t == null)
                 return new byte[0];
@@ -162,6 +153,10 @@ namespace blockchain1
                 var varhashedBytes = sha.ComputeHash((secret));
                 return ByteToString(varhashedBytes);
             }
+        }
+        public static string HashObj(object t)
+        {
+                return ByteToString(SerializeToBytes( t));
         }
         public static string ByteToString(byte[] b)
         {

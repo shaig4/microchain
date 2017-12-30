@@ -1,4 +1,4 @@
-﻿namespace blockchain1
+﻿namespace utils
 {
     public class Bank
     {

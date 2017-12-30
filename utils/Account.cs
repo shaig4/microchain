@@ -1,7 +1,7 @@
 ﻿
 using System.Collections.Generic;
 
-namespace blockchain1
+namespace utils
 {
     public class Address
     {

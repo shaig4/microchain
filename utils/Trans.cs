@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
 
-namespace blockchain1
+namespace utils
 {
     [DebuggerDisplay("{this.ToString()}")]
     [Serializable]
@@ -23,17 +23,23 @@ namespace blockchain1
             return $"amount: {amount}!!!!";
         }
     }
+    [Serializable]
     public class RequestPay
     {
         public RequestParent[] p;
         public RequestChild[] c;
+        public bool valid = true;
+        public bool echo = false;
+        public List<bool> votes;
     }
+    [Serializable]
     public class RequestChild
     {
         public string data;
         public decimal amount;
         public string publicKey;
     }
+    [Serializable]
     public class RequestParent
     {
         public string sig;

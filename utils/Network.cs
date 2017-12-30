@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace blockchain1
+namespace utils
 {
     public class Network
     {

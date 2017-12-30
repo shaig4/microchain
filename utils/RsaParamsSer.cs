@@ -8,7 +8,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace blockchain1
+namespace utils
 {
 
     [Serializable]
@@ -16,22 +16,22 @@ namespace blockchain1
     {
         public static string Ser(RSAParameters p)
         {
+         //   return JsonConvert.SerializeObject(new RSAParametersSerializable(p));
             using (var ms = new MemoryStream())
             {
                 var ser = new BinaryFormatter();
                 ser.Serialize(ms, new RSAParametersSerializable(p));
                 return Base58Encoding.EncodeWithCheckSum(ms.ToArray());
             }
-          //  return JsonConvert.SerializeObject(new RSAParametersSerializable(p));
         }
         public  static RSAParameters DeSer(string data)
         {
+         //   return JsonConvert.DeserializeObject<RSAParametersSerializable>(data).RSAParameters;
             using (var ms = new MemoryStream(Base58Encoding.DecodeWithCheckSum(data)))
             {
                 var ser = new BinaryFormatter();
                 return ((RSAParametersSerializable)ser.Deserialize(ms)).RSAParameters;
             }
-            //return JsonConvert.DeserializeObject<RSAParametersSerializable>(json).RSAParameters;
         }
         private RSAParameters _rsaParameters;
 

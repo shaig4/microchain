@@ -1,65 +1,127 @@
-﻿using blockchain1;
+﻿using utils;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
-namespace blockchain2
+namespace server
 {
     class Program
     {
-        Queue<string> queue = new Queue<string>();
         static void Main(string[] args)
         {
-            var g = new Program();
-            g.Init();
+
+            var genesisWallet = new Wallet($"genesis");
+            var inbox = new Queue<string>();
+            genesisWallet.AddKey("genesis");
+            var addr = genesisWallet.pubPriv.First().Value;
+            File.WriteAllLines(@"..\wallet\imp.txt", new string[] { addr.publicKey, addr.privateKey });
+
+
+            for (var i = 0; i < 10; i++)
+            {
+                var g = new Program();
+                g.InitBackground(i);
+            }
+            Console.ReadLine();
         }
-        public void Init()
-        { 
+        public void InitBackground(int i)
+        {
+            Task.Run(() =>
+            {
+                Init(i);
+            });
+        }
+        public void Init(int i)
+        {
             var net = new Network();
-            var gensysWallet = new Wallet("genesis");
+            var genesisWallet = new Wallet($"genesis");
+            var f = File.ReadAllLines(@"..\wallet\imp.txt");
+            genesisWallet.Import(f[0], f[1]);
+            var addr = genesisWallet.pubPriv.First().Value;
 
-            var f = File.ReadAllLines(@"C:\projects\blockchainUtils\imp.txt");
-            gensysWallet.Import(f[0], f[1]);
+            var inbox = new Queue<string>();
 
-            CryptoUtils.Pay(net, new RequestParent { },
-                 new RequestChild { amount = 100, publicKey = gensysWallet.pubPriv.First().Key }, true);
-                    Console.WriteLine("genesis:");
-            Console.WriteLine(gensysWallet.pubPriv.First().Key);
-            Console.WriteLine(gensysWallet.pubPriv.First().Value.privateKey);
-            Console.WriteLine("---");
+            CryptoUtils.Pay(net, null,
+                 new RequestChild[] { new RequestChild { amount = 100, publicKey = addr.publicKey } });
+
+            Console.WriteLine($"{i} genesis created ");
+            //Console.WriteLine(genesisWallet.pubPriv.First().Key);
+            //Console.WriteLine(genesisWallet.pubPriv.First().Value.privateKey);
+            //Console.WriteLine($"---");
 
             var mini = new MiniServer();
-            mini.Listen("http://localhost:8090/", queue,net);
+            mini.Listen($"http://localhost:809{i}/", inbox, net);
+            var voting = new Dictionary<string, RequestPay>();
+
             while (true)
             {
-                if (queue.Count!=0)
+                if (inbox.Count != 0)
                 {
+                    var x = inbox.Dequeue();
+                    Console.WriteLine($"{i} Payment Entered!");
+                    var rp = JsonConvert.DeserializeObject<RequestPay>(x);
+
+                    var hash = CryptoUtils.HashObj(rp.p);
+                    if (voting.ContainsKey(hash))
+                    {
+                        //informed vote
+                        rp = voting[hash];
+                        rp.votes.Add(rp.valid);
+
+                        if (rp.votes.Count == 10)
+                        {
+
+                            if (rp.votes.Where(v => v).Count() > rp.votes.Count / 2)
+                            {
+                                Console.WriteLine($"{i} COMEETE APPROVED");
+                                CryptoUtils.Pay(net, rp.p, rp.c);
+                            }
+                            else
+                                Console.WriteLine($"{i} COMEETE DECLINED");
+                        }
+                        Console.WriteLine($"{i} COMEETE {rp.votes.Count} count");
+                        continue;
+                    }
+                    rp.votes = new List<bool> ();
+
+                    if (rp.echo)
+                        rp.votes.Add(rp.valid );
+
+                    voting.Add(hash, rp);
+
                     try
                     {
-                        var x = queue.Dequeue();
-                        Console.WriteLine("Payment Entered!");
-                        Console.WriteLine(x);
-                        var rp = JsonConvert.DeserializeObject<RequestPay>(x);
-                        CryptoUtils.Pay(net, rp.p, rp.c, false);
-                        Console.WriteLine("Payed!");
-
-
-                        foreach (var a in net.coins)
-                        {
-                            Console.WriteLine(a.Value.amount + ":" + a.Value.available);
-                        }
-                    } catch
-                    {
-                        Console.WriteLine("Declined!");
-
-                        foreach (var a in net.coins)
-                        {
-                            Console.WriteLine(a.Value.amount + ":"+a.Value.available);
-                        }
+                        CryptoUtils.Validate(net, rp.p, rp.c);
+                        rp.valid = true;
                     }
+                    catch (ArgumentException ex)
+                    {
+                        Console.WriteLine($"{i} invalid! " + ex.Message);
+                        rp.valid = false;
+                    }
+                    if (i < 3)
+                        rp.valid = !rp.valid;
+
+                    rp.votes.Add(rp.valid );
+                    Console.WriteLine($"{i} COMEETE {rp.votes.Count} count");
+                    rp.echo = true;
+                    Console.WriteLine($"{i} inform commitee {rp.valid}");
+                    for (var j = 0; j < 10; j++)
+                        if (j != i)
+                        {
+                            //send to other node
+                            ApiUtils.Send(rp, j);
+                        }
+
+                    //   Console.WriteLine(x);
+                    //foreach (var a in net.coins)
+                    //{
+                    //    Console.WriteLine(a.Value.amount + ":" + a.Value.available);
+                    //}
                 }
                 Thread.Sleep(100);
             }
