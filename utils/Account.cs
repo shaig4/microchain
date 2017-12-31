@@ -8,33 +8,35 @@ namespace utils
         public string privateKey;
         public string publicKey;
         public string name;
+        public string pubHash;
         public decimal balance;
     }
     public class Wallet
     {
-        public Dictionary<string, Address> pubPriv=new Dictionary<string, Address>();
+        public List< Address> addresses=new List<Address>();
         public List<Coin> coins=new List<Coin>();
         public string name;
         public string AddKey(string name)
         {
             var a = CryptoUtils.CreateAddress();
             a.name = name;
-            pubPriv.Add(a.publicKey, a);
-            return a.publicKey;
+            a.pubHash = CryptoUtils.HashAscii(a.publicKey);
+            addresses.Add(a);
+            return a.pubHash;
         }
-        public void Import(string publicKey, string privateKey)
+        public Address Import(string publicKey, string privateKey)
         {
             var a = new Address();
             a.name = "imported";
             a.publicKey = publicKey;
             a.privateKey = privateKey;
-            if (!pubPriv.ContainsKey(publicKey))
-                pubPriv.Add(publicKey, a);
+            a.pubHash = CryptoUtils.HashAscii(publicKey);
+                addresses.Add(a);
+            return a;
         }
-        public string Sign(Coin coin)
+        public string Sign(Coin coin, Address a)
         {
-            var a = pubPriv[coin.publicKey];
-            return  CryptoUtils.Sign(a.privateKey, coin.hash);
+            return  CryptoUtils.Sign(a.privateKey, coin.dataHash);
         }
         public Wallet(string _name)
         {

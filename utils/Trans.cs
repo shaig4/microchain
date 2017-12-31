@@ -10,13 +10,13 @@ namespace utils
     public class Coin
     {
         public string[] parents;
-        public string[] brothers;
-        public string publicKey;
-        public string hash;
+        //public string[] brothers;
+        //public string publicKey;
+        public string dataHash;
         public decimal amount;
         public string data;
         public DateTime time;
-        public bool available;
+       // public bool available;
 
         public override string ToString()
         {
@@ -30,20 +30,28 @@ namespace utils
         public RequestChild[] c;
         public bool valid = true;
         public bool echo = false;
-        public List<bool> votes;
+        public int from= -1;
+        public List<Vote> votes;
+    }
+    public class Vote
+    {
+        public bool ok;
+        public int from;
     }
     [Serializable]
     public class RequestChild
     {
         public string data;
         public decimal amount;
-        public string publicKey;
+        public string pubHash;
     }
     [Serializable]
     public class RequestParent
     {
         public string sig;
         public string unlocker;
-        public string publicKey;
+        public string pubHash;
+
+        public string publicKey { get;  set; }
     }
 }

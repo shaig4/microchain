@@ -32,60 +32,60 @@ namespace utils
             if (parents.Length > 1 && children.Length > 1)
                 throw new ArgumentException("cant move many to many");
 
-            if (parents.GroupBy(a => a.publicKey).Count() != parents.Count()
-                || children.GroupBy(a => a.publicKey).Count() != children.Count())
+            if (parents.GroupBy(a => a.pubHash).Count() != parents.Count()
+                || children.GroupBy(a => a.pubHash).Count() != children.Count())
                 throw new ArgumentException("duplicated coins");
 
             decimal amount = 0;
             foreach (var parent in parents)
             {
-                if (!net.coins.ContainsKey(parent.publicKey))
-                    throw new ArgumentException("parent not in network");
+                if (!net.avail.ContainsKey(parent.pubHash))
+                    throw new ArgumentException("parent not available in network");
 
-                var coin = net.coins[parent.publicKey];
+                var coin = net.avail[parent.pubHash];
                 amount += coin.amount;
-                if (!VerifyData(coin.publicKey, coin.hash, parent.sig))
-                    throw new ArgumentException($"order could not unlock {coin.hash.Substring(0,10)} {parent.sig.Substring(0,10)}");
-                if (!coin.available)
-                    throw new ArgumentException("a used coin");
+                if (HashAscii(parent.publicKey) != parent.pubHash)
+                    throw new ArgumentException($"invalid hash {coin.dataHash.Substring(0, 10)} {parent.sig.Substring(0, 10)}");
+
+                if (!VerifyData(parent.publicKey, coin.dataHash, parent.sig))
+                    throw new ArgumentException($"order could not unlock {coin.dataHash.Substring(0, 10)} {parent.sig.Substring(0, 10)}");
             }
             if (children.Sum(a => a.amount) != amount)//1+1=2 || 2=1+1
                 throw new ArgumentException("orders amount not match");
+            foreach (var rt in children)
+            {
+                if (net.all.ContainsKey(rt.pubHash))
+                    throw new ArgumentException("coin alread exist");
+            }
         }
 
-        public static Coin[] Pay(Network net, RequestParent[] parents, RequestChild[] children)
+            public static Coin[] Pay(Network net, RequestParent[] parents, RequestChild[] children)
         {
             var res = new List<Coin>();
             foreach (var rt in children)
             {
-                if (net.coins.ContainsKey(rt.publicKey))
-                    throw new ArgumentException("coin alread exist");
-
+                
                 var t = new Coin
                 {
                     amount = rt.amount,
                     data = rt.data,
-                  //  time = DateTime.UtcNow,
-                    publicKey = rt.publicKey,
-                    parents = parents?.Select(a => a.publicKey).ToArray(),
-                    brothers = children.Where(a => a != rt).Select(a => a.publicKey).ToArray()
+                    //  time = DateTime.UtcNow,
+                   // pubHash = rt.pubHash,
+                    parents = parents.Select(a => a.pubHash).ToArray()
                 };
 
-                var sigsBytes = parents?.SelectMany(a => SerializeToBytes(a.sig)) ?? new byte[] { };
-                t.hash = Hash(SerializeToBytes(t).Concat(sigsBytes).ToArray());
-                res.Add(t);
+                //   var sigsBytes = parents.SelectMany(a => SerializeToBytes(a.sig)) ?? new byte[] { };
+                t.dataHash = Hash(SerializeToBytes(t));//.Concat(sigsBytes).ToArray());
+
+                    foreach (var p in parents)
+                        net.avail.Remove(p.pubHash);
+
+                net.avail.Add(rt.pubHash, t);
+                net.all.Add(rt.pubHash, t);
+
                 Console.WriteLine($"coin size {SerializeToBytes(t).Length} bytes");
             }
 
-            if (parents!=null)
-                foreach (var p in parents)
-                    net.coins[p.publicKey].available = false;
-
-            foreach (var t in res)
-            {
-                t.available = true;
-                net.coins.Add(t.publicKey, t);
-            }
 
             return res.ToArray();
         }
@@ -148,7 +148,7 @@ namespace utils
         //}
         public static string Hash(byte[] secret)
         {
-            using (var sha = SHA512.Create())
+            using (var sha = SHA256.Create())
             {
                 var varhashedBytes = sha.ComputeHash((secret));
                 return ByteToString(varhashedBytes);
@@ -156,7 +156,11 @@ namespace utils
         }
         public static string HashObj(object t)
         {
-                return ByteToString(SerializeToBytes( t));
+            return Hash(SerializeToBytes(t));
+        }
+        public static string HashAscii(string t)
+        {
+            return Hash(Encoding.ASCII.GetBytes(t));
         }
         public static string ByteToString(byte[] b)
         {

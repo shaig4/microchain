@@ -6,8 +6,9 @@ namespace utils
 {
     public class Network
     {
-        public Dictionary<string,Coin> coins= new Dictionary<string, Coin> ();
-        public string coin;
+        public Dictionary<string,Coin> all = new Dictionary<string, Coin> ();
+        public Dictionary<string, Coin> avail= new Dictionary<string, Coin> ();
+        public string name;
     }
 
 }

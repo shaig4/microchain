@@ -23,8 +23,8 @@ namespace wallet
                 {
                     i++;
                     var f = File.ReadAllLines(@"..\wallet\imp.txt");
-                    wallet.Import(f[0], f[1]);
-                    var coin = Get(f[0],0);
+                  var addr=  wallet.Import(f[0], f[1]);
+                    var coin = Get(addr.pubHash, 0);
                     if (coin==null)
                     {
                         Console.WriteLine("no coin");
@@ -32,10 +32,10 @@ namespace wallet
                     }
                     var rp = new RequestPay
                     {
-                        p = new RequestParent[] { new RequestParent { publicKey = coin.publicKey, sig = wallet.Sign(coin) } },
+                        p = new RequestParent[] { new RequestParent { pubHash = addr.pubHash,publicKey=addr.publicKey, sig = wallet.Sign(coin,addr) } },
                         c = new RequestChild[] {
-                        new RequestChild { amount = coin.amount/2, publicKey = wallet.AddKey("alice"+i)},
-                        new RequestChild { amount = coin.amount/2, publicKey = wallet.AddKey("bob"+i) }
+                        new RequestChild { amount = coin.amount/2, pubHash = wallet.AddKey("alice"+i)},
+                        new RequestChild { amount = coin.amount/2, pubHash = wallet.AddKey("bob"+i) }
                      }
                     };
 
@@ -44,7 +44,7 @@ namespace wallet
                 }
                 else if (line == "l")
                 {
-                    foreach (var a in wallet.pubPriv.Values)
+                    foreach (var a in wallet.addresses)
                     {
                         Console.WriteLine(a.name + ":");
                         Console.WriteLine(a.publicKey);
@@ -55,24 +55,25 @@ namespace wallet
                 else if (line == "b")
                 {
                     for (var j=0; j<10; j++)
-                    foreach (var a in wallet.pubPriv.Values)
+                    foreach (var a in wallet.addresses)
                     {
-                         var coin = Get(a.publicKey,j);
+                         var coin = Get(a.pubHash,j);
                         if (coin!=null)
-                            Console.WriteLine($"{j}: {a.name} balance: {(coin.available?coin.amount:0)}");
+                            Console.WriteLine($"{j}: {a.name} balance: {(coin.amount)}");
                     }
                 }
                 else if (line.StartsWith("p "))
                 {
                     i++;
 
-                    var acnt=   wallet.pubPriv.Where(a=>a.Value.name==line.Split(' ')[1]);
-                    if (!acnt.Any())
+                    var addr =   wallet.addresses.FirstOrDefault(a=>
+                                        a.name==line.Split(' ')[1]);
+                    if (addr==null)
                     {
                         Console.WriteLine("no name");
                         continue;
                     }
-                    var coin = Get(acnt.First().Key,0);
+                    var coin = Get(addr.pubHash,0);
                     if (coin == null)
                     {
                         Console.WriteLine("no coin");
@@ -80,10 +81,12 @@ namespace wallet
                     }
                     var rp = new RequestPay
                     {
-                        p = new RequestParent[] { new RequestParent { publicKey = coin.publicKey, sig = wallet.Sign(coin) } },
+                        p = new RequestParent[] { new RequestParent { pubHash = addr.pubHash,
+                            publicKey =addr.publicKey,
+                            sig = wallet.Sign(coin,addr) } },
                         c = new RequestChild[] {
-                        new RequestChild { amount = coin.amount/2, publicKey = wallet.AddKey("alice"+i)},
-                        new RequestChild { amount = coin.amount/2, publicKey = wallet.AddKey("bob"+i) }
+                        new RequestChild { amount = coin.amount/2, pubHash = wallet.AddKey("alice"+i)},
+                        new RequestChild { amount = coin.amount/2, pubHash = wallet.AddKey("bob"+i) }
                      }
                     };
 

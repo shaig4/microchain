@@ -17,8 +17,8 @@ namespace server
             var genesisWallet = new Wallet($"genesis");
             var inbox = new Queue<string>();
             genesisWallet.AddKey("genesis");
-            var addr = genesisWallet.pubPriv.First().Value;
-            File.WriteAllLines(@"..\wallet\imp.txt", new string[] { addr.publicKey, addr.privateKey });
+            var addr = genesisWallet.addresses.First();
+           File.WriteAllLines(@"..\wallet\imp.txt", new string[] { addr.publicKey, addr.privateKey });
 
 
             for (var i = 0; i < 10; i++)
@@ -40,13 +40,12 @@ namespace server
             var net = new Network();
             var genesisWallet = new Wallet($"genesis");
             var f = File.ReadAllLines(@"..\wallet\imp.txt");
-            genesisWallet.Import(f[0], f[1]);
-            var addr = genesisWallet.pubPriv.First().Value;
-
+           var addr =  genesisWallet.Import(f[0], f[1]);
+          
             var inbox = new Queue<string>();
 
-            CryptoUtils.Pay(net, null,
-                 new RequestChild[] { new RequestChild { amount = 100, publicKey = addr.publicKey } });
+            CryptoUtils.Pay(net, new RequestParent[0],
+                 new RequestChild[] { new RequestChild { amount = 100, pubHash = addr.pubHash } });
 
             Console.WriteLine($"{i} genesis created ");
             //Console.WriteLine(genesisWallet.pubPriv.First().Key);
@@ -70,7 +69,7 @@ namespace server
                     {
                         //informed vote
                         rp = voting[hash];
-                        rp.votes.Add(rp.valid);
+                        rp.votes.Add(new Vote { ok = rp.valid, from = rp.from });
 
                         if (rp.votes.Count == 10)
                         {
@@ -86,15 +85,16 @@ namespace server
                         Console.WriteLine($"{i} COMEETE {rp.votes.Count} count");
                         continue;
                     }
-                    rp.votes = new List<bool> ();
+                    rp.votes = new List<Vote> ();
 
                     if (rp.echo)
-                        rp.votes.Add(rp.valid );
+                        rp.votes.Add(new Vote { ok = rp.valid, from = rp.from });
 
                     voting.Add(hash, rp);
 
                     try
                     {
+                        
                         CryptoUtils.Validate(net, rp.p, rp.c);
                         rp.valid = true;
                     }
